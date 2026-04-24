@@ -98,3 +98,14 @@ async def ai_summary(fuente: str = None, db: AsyncSession = Depends(get_db)):
         leads = [l for l in leads if l.fuente == fuente]
     summary = await ai_service.generate_summary(leads)
     return {"success": True, "data": summary}
+
+
+@router.post("/leads/webhook")
+async def webhook_lead(dto: CreateLeadDto, db: AsyncSession = Depends(get_db)):
+    repo = LeadRepository(db)
+    use_cases = LeadUseCases(repo)
+    try:
+        lead = await use_cases.create(dto)
+        return {"success": True, "message": "Lead recibido desde webhook", "lead_id": str(lead.id)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
