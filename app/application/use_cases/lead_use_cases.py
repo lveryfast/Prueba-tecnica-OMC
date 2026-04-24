@@ -1,3 +1,7 @@
+from typing import Optional, List
+from datetime import datetime
+from uuid import UUID
+
 from app.domain.entities.lead import Lead
 from app.domain.interfaces.lead_repository import LeadRepositoryInterface
 from app.application.dtos.lead_dto import CreateLeadDto, UpdateLeadDto
@@ -8,6 +12,10 @@ class LeadUseCases:
         self.repo = repo
 
     async def create(self, dto: CreateLeadDto) -> Lead:
+        existing = await self.repo.get_by_email(dto.email)
+        if existing:
+            raise ValueError(f"El email {dto.email} ya está registrado")
+        
         lead = Lead(
             id=None,
             nombre=dto.nombre,
@@ -19,14 +27,31 @@ class LeadUseCases:
         )
         return await self.repo.create(lead)
 
-    async def get(self, lead_id: str):
-        return await self.repo.get_by_id(lead_id)
+    async def get(self, lead_id: str) -> Optional[Lead]:
+        return await self.repo.get_by_id(UUID(lead_id))
 
-    async def list(self, page=1, limit=10):
-        return await self.repo.get_all(page, limit)
+    async def list(
+        self,
+        page: int = 1,
+        limit: int = 10,
+        fuente: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None
+    ) -> dict:
+        leads = await self.repo.get_all(page, limit, fuente, start_date, end_date)
+        total = await self.repo.count(fuente, start_date, end_date)
+        pages = (total + limit - 1) // limit if limit > 0 else 0
+        
+        return {
+            "items": leads,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "pages": pages
+        }
 
-    async def update(self, lead_id: str, dto: UpdateLeadDto):
-        lead = await self.repo.get_by_id(lead_id)
+    async def update(self, lead_id: str, dto: UpdateLeadDto) -> Lead:
+        lead = await self.repo.get_by_id(UUID(lead_id))
         if not lead:
             raise ValueError("Lead no encontrado")
         
@@ -40,7 +65,7 @@ class LeadUseCases:
         return await self.repo.update(lead)
 
     async def delete(self, lead_id: str) -> bool:
-        return await self.repo.delete(lead_id)
+        return await self.repo.delete(UUID(lead_id))
 
     async def stats(self) -> dict:
         return await self.repo.get_stats()

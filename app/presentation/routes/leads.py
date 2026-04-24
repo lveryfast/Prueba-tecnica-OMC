@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
+from datetime import datetime
 
 from app.infrastructure.database.connection import get_db
 from app.infrastructure.repositories.lead_repository import LeadRepository
@@ -30,10 +32,18 @@ async def create_lead(dto: CreateLeadDto, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/leads")
-async def list_leads(page: int = 1, limit: int = 10, db: AsyncSession = Depends(get_db)):
+async def list_leads(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    fuente: Optional[str] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    db: AsyncSession = Depends(get_db)
+):
     repo = LeadRepository(db)
     use_cases = LeadUseCases(repo)
-    return {"success": True, "data": await use_cases.list(page, limit)}
+    result = await use_cases.list(page, limit, fuente, start_date, end_date)
+    return {"success": True, "data": result}
 
 
 @router.get("/leads/stats")
@@ -46,9 +56,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
 @router.post("/leads/ai/summary")
 async def ai_summary(fuente: str = None, db: AsyncSession = Depends(get_db)):
     repo = LeadRepository(db)
-    leads = await repo.get_all(page=1, limit=100)
-    if fuente:
-        leads = [l for l in leads if l.fuente == fuente]
+    leads = await repo.get_all(page=1, limit=100, fuente=fuente)
     summary = await ai_service.generate_summary(leads)
     return {"success": True, "data": summary}
 

@@ -34,10 +34,34 @@ class LeadRepository(LeadRepositoryInterface):
         model = result.scalar_one_or_none()
         return self._to_entity(model) if model else None
 
-    async def get_all(self, page=1, limit=10) -> List[Lead]:
+    async def get_by_email(self, email: str) -> Optional[Lead]:
         result = await self.session.execute(
-            select(LeadModel).where(LeadModel.is_deleted == False).offset((page-1)*limit).limit(limit)
+            select(LeadModel).where(LeadModel.email == email)
         )
+        model = result.scalar_one_or_none()
+        return self._to_entity(model) if model else None
+
+    async def get_all(
+        self,
+        page: int = 1,
+        limit: int = 10,
+        fuente: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None
+    ) -> List[Lead]:
+        query = select(LeadModel).where(LeadModel.is_deleted == False)
+        
+        if fuente:
+            query = query.where(LeadModel.fuente == fuente)
+        if start_date:
+            query = query.where(LeadModel.created_at >= start_date)
+        if end_date:
+            query = query.where(LeadModel.created_at <= end_date)
+        
+        query = query.order_by(LeadModel.created_at.desc())
+        query = query.offset((page - 1) * limit).limit(limit)
+        
+        result = await self.session.execute(query)
         return [self._to_entity(m) for m in result.scalars().all()]
 
     async def update(self, lead: Lead) -> Lead:
@@ -66,26 +90,51 @@ class LeadRepository(LeadRepositoryInterface):
             return True
         return False
 
+    async def count(
+        self,
+        fuente: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None
+    ) -> int:
+        query = select(func.count(LeadModel.id)).where(LeadModel.is_deleted == False)
+        
+        if fuente:
+            query = query.where(LeadModel.fuente == fuente)
+        if start_date:
+            query = query.where(LeadModel.created_at >= start_date)
+        if end_date:
+            query = query.where(LeadModel.created_at <= end_date)
+        
+        result = await self.session.scalar(query)
+        return result or 0
+
     async def get_stats(self) -> dict:
-        leads = await self.get_all(page=1, limit=1000)
+        total = await self.count()
         
-        total = len(leads)
+        fuente_result = await self.session.execute(
+            select(LeadModel.fuente, func.count(LeadModel.id))
+            .where(LeadModel.is_deleted == False)
+            .group_by(LeadModel.fuente)
+        )
+        por_fuente = {row[0]: row[1] for row in fuente_result.all()}
         
-        por_fuente = {}
-        total_presupuesto = 0
-        for lead in leads:
-            por_fuente[lead.fuente] = por_fuente.get(lead.fuente, 0) + 1
-            if lead.presupuesto:
-                total_presupuesto += lead.presupuesto
+        avg_result = await self.session.scalar(
+            select(func.avg(LeadModel.presupuesto)).where(LeadModel.is_deleted == False)
+        )
+        promedio = float(avg_result) if avg_result else 0
         
-        promedio = total_presupuesto / len(leads) if leads else 0
-        ultimos_7 = len([l for l in leads if l.created_at and (datetime.utcnow() - l.created_at).days <= 7]) if leads else 0
+        siete = datetime.utcnow() - timedelta(days=7)
+        ultimos = await self.session.scalar(
+            select(func.count(LeadModel.id))
+            .where(LeadModel.is_deleted == False)
+            .where(LeadModel.created_at >= siete)
+        )
         
         return {
             "total": total,
             "por_fuente": por_fuente,
             "promedio_presupuesto": round(promedio, 2),
-            "ultimos_7_dias": ultimos_7
+            "ultimos_7_dias": ultimos or 0
         }
 
     def _to_entity(self, model: LeadModel) -> Lead:
