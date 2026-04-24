@@ -18,8 +18,15 @@ from app.presentation.middleware.auth import get_current_user
 
 
 router = APIRouter()
-auth_service = AuthService()
-ai_service = AIMockService()
+
+
+# Service dependency providers
+def get_auth_service() -> AuthService:
+    return AuthService()
+
+
+def get_ai_service() -> AIMockService:
+    return AIMockService()
 
 
 # Dependency injection for repository and use cases
@@ -27,11 +34,24 @@ def get_lead_use_cases(db: AsyncSession = Depends(get_db)):
     return LeadUseCases(LeadRepository(db))
 
 
+def get_lead_repository(db: AsyncSession = Depends(get_db)):
+    return LeadRepository(db)
+
+
+def get_user_repository(db: AsyncSession = Depends(get_db)):
+    return UserRepository(db)
+
+
 # Public endpoints
 @router.post("/auth/login")
 @limiter.limit("5/minute")
-async def login(request: Request, dto: LoginDto, db: AsyncSession = Depends(get_db)):
-    user_repo = UserRepository(db)
+async def login(
+    request: Request,
+    dto: LoginDto,
+    db: AsyncSession = Depends(get_db),
+    user_repo: UserRepository = Depends(get_user_repository),
+    auth_service: AuthService = Depends(get_auth_service)
+):
     use_cases = AuthUseCases(user_repo)
     try:
         user = await use_cases.login(dto)
@@ -46,8 +66,11 @@ async def login(request: Request, dto: LoginDto, db: AsyncSession = Depends(get_
 
 
 @router.post("/leads/webhook")
-async def webhook_lead(dto: CreateLeadDto, db: AsyncSession = Depends(get_db)):
-    use_cases = LeadUseCases(LeadRepository(db))
+async def webhook_lead(
+    dto: CreateLeadDto,
+    db: AsyncSession = Depends(get_db),
+    use_cases: LeadUseCases = Depends(get_lead_use_cases)
+):
     try:
         lead = await use_cases.create(dto)
         return {"success": True, "message": "Lead recibido desde webhook", "lead_id": str(lead.id)}
@@ -60,9 +83,8 @@ async def webhook_lead(dto: CreateLeadDto, db: AsyncSession = Depends(get_db)):
 async def create_lead(
     dto: CreateLeadDto,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    use_cases: LeadUseCases = Depends(get_lead_use_cases)
 ):
-    use_cases = LeadUseCases(LeadRepository(db))
     try:
         lead = await use_cases.create(dto)
         return {"success": True, "data": lead}
@@ -78,9 +100,8 @@ async def list_leads(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    use_cases: LeadUseCases = Depends(get_lead_use_cases)
 ):
-    use_cases = LeadUseCases(LeadRepository(db))
     result = await use_cases.list(page, limit, fuente, start_date, end_date)
     return {"success": True, "data": result}
 
@@ -88,9 +109,8 @@ async def list_leads(
 @router.get("/leads/stats")
 async def get_stats(
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    use_cases: LeadUseCases = Depends(get_lead_use_cases)
 ):
-    use_cases = LeadUseCases(LeadRepository(db))
     return {"success": True, "data": await use_cases.stats()}
 
 
@@ -98,9 +118,9 @@ async def get_stats(
 async def ai_summary(
     fuente: Optional[str] = None,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    repo: LeadRepository = Depends(get_lead_repository),
+    ai_service: AIMockService = Depends(get_ai_service)
 ):
-    repo = LeadRepository(db)
     leads = await repo.get_all(page=1, limit=100, fuente=fuente)
     summary = await ai_service.generate_summary(leads)
     return {"success": True, "data": summary}
@@ -110,9 +130,8 @@ async def ai_summary(
 async def get_lead(
     lead_id: str,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    use_cases: LeadUseCases = Depends(get_lead_use_cases)
 ):
-    use_cases = LeadUseCases(LeadRepository(db))
     lead = await use_cases.get(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead no encontrado")
@@ -124,9 +143,8 @@ async def update_lead(
     lead_id: str,
     dto: UpdateLeadDto,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    use_cases: LeadUseCases = Depends(get_lead_use_cases)
 ):
-    use_cases = LeadUseCases(LeadRepository(db))
     try:
         lead = await use_cases.update(lead_id, dto)
         return {"success": True, "data": lead}
@@ -138,9 +156,8 @@ async def update_lead(
 async def delete_lead(
     lead_id: str,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    use_cases: LeadUseCases = Depends(get_lead_use_cases)
 ):
-    use_cases = LeadUseCases(LeadRepository(db))
     result = await use_cases.delete(lead_id)
     if not result:
         raise HTTPException(status_code=404, detail="Lead no encontrado")
