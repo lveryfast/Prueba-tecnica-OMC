@@ -1,0 +1,11 @@
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/leads_db"
+    JWT_SECRET_KEY: str = "change-this-secret-key-min-32-characters"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+
+settings = Settings()
