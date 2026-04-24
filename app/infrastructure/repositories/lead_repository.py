@@ -1,6 +1,6 @@
 from typing import Optional, List
 from uuid import UUID
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 
@@ -36,7 +36,7 @@ class LeadRepository(LeadRepositoryInterface):
 
     async def get_all(self, page=1, limit=10) -> List[Lead]:
         result = await self.session.execute(
-            select(LeadModel).offset((page-1)*limit).limit(limit)
+            select(LeadModel).where(LeadModel.is_deleted == False).offset((page-1)*limit).limit(limit)
         )
         return [self._to_entity(m) for m in result.scalars().all()]
 
@@ -67,17 +67,33 @@ class LeadRepository(LeadRepositoryInterface):
         return False
 
     async def get_stats(self) -> dict:
-        total = await self.session.scalar(select(func.count(LeadModel.id)))
+        total = await self.session.scalar(
+            select(func.count(LeadModel.id)).where(LeadModel.is_deleted == False)
+        )
+        
         fuente = await self.session.execute(
-            select(LeadModel.fuente, func.count(LeadModel.id)).group_by(LeadModel.fuente)
+            select(LeadModel.fuente, func.count(LeadModel.id))
+            .where(LeadModel.is_deleted == False)
+            .group_by(LeadModel.fuente)
         )
         por_fuente = {f[0]: f[1] for f in fuente.all()}
-        promedio = await self.session.scalar(select(func.avg(LeadModel.presupuesto)))
+        
+        promedio = await self.session.scalar(
+            select(func.avg(LeadModel.presupuesto)).where(LeadModel.is_deleted == False)
+        )
+        
         siete = datetime.utcnow() - timedelta(days=7)
         ultimos = await self.session.scalar(
-            select(func.count(LeadModel.id)).where(LeadModel.created_at >= siete)
+            select(func.count(LeadModel.id))
+            .where(and_(LeadModel.is_deleted == False, LeadModel.created_at >= siete))
         )
-        return {"total": total, "por_fuente": por_fuente, "promedio_presupuesto": promedio or 0, "ultimos_7_dias": ultimos}
+        
+        return {
+            "total": total or 0, 
+            "por_fuente": por_fuente, 
+            "promedio_presupuesto": float(promedio or 0), 
+            "ultimos_7_dias": ultimos or 0
+        }
 
     def _to_entity(self, model: LeadModel) -> Lead:
         return Lead(
