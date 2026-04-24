@@ -33,14 +33,18 @@ class LeadRepository(LeadRepositoryInterface):
 
     async def get_by_id(self, lead_id: UUID) -> Optional[Lead]:
         result = await self.session.execute(
-            select(LeadModel).where(LeadModel.id == lead_id)
+            select(LeadModel).where(
+                (LeadModel.id == lead_id) & (LeadModel.is_deleted == False)
+            )
         )
         model = result.scalar_one_or_none()
         return self._to_entity(model) if model else None
 
     async def get_by_email(self, email: str) -> Optional[Lead]:
         result = await self.session.execute(
-            select(LeadModel).where(LeadModel.email == email)
+            select(LeadModel).where(
+                (LeadModel.email == email) & (LeadModel.is_deleted == False)
+            )
         )
         model = result.scalar_one_or_none()
         return self._to_entity(model) if model else None
@@ -92,9 +96,13 @@ class LeadRepository(LeadRepositoryInterface):
 
     async def update(self, lead: Lead) -> Lead:
         result = await self.session.execute(
-            select(LeadModel).where(LeadModel.id == lead.id)
+            select(LeadModel).where(
+                (LeadModel.id == lead.id) & (LeadModel.is_deleted == False)
+            )
         )
-        model = result.scalar_one()
+        model = result.scalar_one_or_none()
+        if not model:
+            raise ValueError("Lead no encontrado")
         model.nombre = lead.nombre
         model.email = lead.email
         model.telefono = lead.telefono
@@ -142,7 +150,6 @@ class LeadRepository(LeadRepositoryInterface):
             query = query.where(LeadModel.created_at <= end_date)
         
         result = await self.session.scalar(query)
-        return result or 0
         return result or 0
 
     async def get_stats(self) -> dict:
