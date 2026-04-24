@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
+    
+    CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:8080"]
 
 
 settings = Settings()
