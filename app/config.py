@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "change-this-secret-key-min-32-characters"
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    
+    ENVIRONMENT: str = "development"
+    LOG_LEVEL: str = "INFO"
 
 
 settings = Settings()

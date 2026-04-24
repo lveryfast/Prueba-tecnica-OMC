@@ -8,13 +8,20 @@ from app.infrastructure.database.connection import engine, Base
 from app.presentation.routes.leads import router as leads_router
 from app.presentation.handlers.exceptions import register_exception_handlers
 from app.presentation.middleware.rate_limit import register_rate_limiter
+from app.presentation.middleware.logging import setup_logging, get_logger
 
+
+# Initialize structured logging
+setup_logging()
+logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Starting application", extra={"event": "app_start"})
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
+    logger.info("Shutting down application", extra={"event": "app_shutdown"})
 
 
 app = FastAPI(
