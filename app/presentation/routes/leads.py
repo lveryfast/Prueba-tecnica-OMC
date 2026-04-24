@@ -14,6 +14,7 @@ from app.application.use_cases.lead_use_cases import LeadUseCases
 from app.application.use_cases.auth_use_cases import AuthUseCases
 from app.config import settings
 from app.presentation.middleware.rate_limit import limiter
+from app.presentation.middleware.auth import get_current_user
 
 
 router = APIRouter()
@@ -21,89 +22,12 @@ auth_service = AuthService()
 ai_service = AIMockService()
 
 
-@router.post("/leads", status_code=201)
-async def create_lead(dto: CreateLeadDto, db: AsyncSession = Depends(get_db)):
-    repo = LeadRepository(db)
-    use_cases = LeadUseCases(repo)
-    try:
-        lead = await use_cases.create(dto)
-        return {"success": True, "data": lead}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+# Dependency injection for repository and use cases
+def get_lead_use_cases(db: AsyncSession = Depends(get_db)):
+    return LeadUseCases(LeadRepository(db))
 
 
-@router.get("/leads")
-async def list_leads(
-    page: int = Query(1, ge=1),
-    limit: int = Query(10, ge=1, le=100),
-    fuente: Optional[str] = None,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
-    db: AsyncSession = Depends(get_db)
-):
-    repo = LeadRepository(db)
-    use_cases = LeadUseCases(repo)
-    result = await use_cases.list(page, limit, fuente, start_date, end_date)
-    return {"success": True, "data": result}
-
-
-@router.get("/leads/stats")
-async def get_stats(db: AsyncSession = Depends(get_db)):
-    repo = LeadRepository(db)
-    use_cases = LeadUseCases(repo)
-    return {"success": True, "data": await use_cases.stats()}
-
-
-@router.post("/leads/ai/summary")
-async def ai_summary(fuente: str = None, db: AsyncSession = Depends(get_db)):
-    repo = LeadRepository(db)
-    leads = await repo.get_all(page=1, limit=100, fuente=fuente)
-    summary = await ai_service.generate_summary(leads)
-    return {"success": True, "data": summary}
-
-
-@router.post("/leads/webhook")
-async def webhook_lead(dto: CreateLeadDto, db: AsyncSession = Depends(get_db)):
-    repo = LeadRepository(db)
-    use_cases = LeadUseCases(repo)
-    try:
-        lead = await use_cases.create(dto)
-        return {"success": True, "message": "Lead recibido desde webhook", "lead_id": str(lead.id)}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.get("/leads/{lead_id}")
-async def get_lead(lead_id: str, db: AsyncSession = Depends(get_db)):
-    repo = LeadRepository(db)
-    use_cases = LeadUseCases(repo)
-    lead = await use_cases.get(lead_id)
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead no encontrado")
-    return {"success": True, "data": lead}
-
-
-@router.patch("/leads/{lead_id}")
-async def update_lead(lead_id: str, dto: UpdateLeadDto, db: AsyncSession = Depends(get_db)):
-    repo = LeadRepository(db)
-    use_cases = LeadUseCases(repo)
-    try:
-        lead = await use_cases.update(lead_id, dto)
-        return {"success": True, "data": lead}
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-@router.delete("/leads/{lead_id}")
-async def delete_lead(lead_id: str, db: AsyncSession = Depends(get_db)):
-    repo = LeadRepository(db)
-    use_cases = LeadUseCases(repo)
-    result = await use_cases.delete(lead_id)
-    if not result:
-        raise HTTPException(status_code=404, detail="Lead no encontrado")
-    return {"success": True, "message": "Lead eliminado"}
-
-
+# Public endpoints
 @router.post("/auth/login")
 @limiter.limit("5/minute")
 async def login(request: Request, dto: LoginDto, db: AsyncSession = Depends(get_db)):
@@ -119,3 +43,105 @@ async def login(request: Request, dto: LoginDto, db: AsyncSession = Depends(get_
         )
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
+
+
+@router.post("/leads/webhook")
+async def webhook_lead(dto: CreateLeadDto, db: AsyncSession = Depends(get_db)):
+    use_cases = LeadUseCases(LeadRepository(db))
+    try:
+        lead = await use_cases.create(dto)
+        return {"success": True, "message": "Lead recibido desde webhook", "lead_id": str(lead.id)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# Protected endpoints - require authentication
+@router.post("/leads", status_code=201)
+async def create_lead(
+    dto: CreateLeadDto,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    use_cases = LeadUseCases(LeadRepository(db))
+    try:
+        lead = await use_cases.create(dto)
+        return {"success": True, "data": lead}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/leads")
+async def list_leads(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    fuente: Optional[str] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    use_cases = LeadUseCases(LeadRepository(db))
+    result = await use_cases.list(page, limit, fuente, start_date, end_date)
+    return {"success": True, "data": result}
+
+
+@router.get("/leads/stats")
+async def get_stats(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    use_cases = LeadUseCases(LeadRepository(db))
+    return {"success": True, "data": await use_cases.stats()}
+
+
+@router.post("/leads/ai/summary")
+async def ai_summary(
+    fuente: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    repo = LeadRepository(db)
+    leads = await repo.get_all(page=1, limit=100, fuente=fuente)
+    summary = await ai_service.generate_summary(leads)
+    return {"success": True, "data": summary}
+
+
+@router.get("/leads/{lead_id}")
+async def get_lead(
+    lead_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    use_cases = LeadUseCases(LeadRepository(db))
+    lead = await use_cases.get(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    return {"success": True, "data": lead}
+
+
+@router.patch("/leads/{lead_id}")
+async def update_lead(
+    lead_id: str,
+    dto: UpdateLeadDto,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    use_cases = LeadUseCases(LeadRepository(db))
+    try:
+        lead = await use_cases.update(lead_id, dto)
+        return {"success": True, "data": lead}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.delete("/leads/{lead_id}")
+async def delete_lead(
+    lead_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    use_cases = LeadUseCases(LeadRepository(db))
+    result = await use_cases.delete(lead_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    return {"success": True, "message": "Lead eliminado"}
