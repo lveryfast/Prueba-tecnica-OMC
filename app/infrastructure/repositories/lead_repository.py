@@ -115,14 +115,17 @@ class LeadRepository(LeadRepositoryInterface):
 
     async def delete(self, lead_id: UUID) -> bool:
         result = await self.session.execute(
-            select(LeadModel).where(LeadModel.id == lead_id)
+            select(LeadModel).where(
+                (LeadModel.id == lead_id) & (LeadModel.is_deleted == False)
+            )
         )
         model = result.scalar_one_or_none()
         if model:
             model.is_deleted = True
             await self.session.commit()
             return True
-        return False
+        # Idempotent: return True if already deleted or not found
+        return True
 
     async def count(
         self,

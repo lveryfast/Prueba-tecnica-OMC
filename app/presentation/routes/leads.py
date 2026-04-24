@@ -175,7 +175,6 @@ async def update_lead(
         UUID(lead_id)
     except UUIDValidationError:
         raise HTTPException(status_code=400, detail="ID de lead inválido")
-):
     try:
         lead = await use_cases.update(lead_id, dto)
         return {"success": True, "data": lead}

@@ -4,7 +4,7 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import DataError
 from uuid import UUID
-from datetime import datetime, timezone, timezone
+from datetime import datetime, timezone
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

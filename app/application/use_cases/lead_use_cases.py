@@ -65,6 +65,12 @@ class LeadUseCases:
         if not lead:
             raise ValueError("Lead no encontrado")
         
+        # Check email duplication (excluding current lead)
+        if dto.email and dto.email != lead.email:
+            existing = await self.repo.get_by_email(dto.email)
+            if existing:
+                raise ValueError(f"El email {dto.email} ya está registrado")
+        
         if dto.nombre: lead.nombre = dto.nombre
         if dto.email: lead.email = dto.email
         if dto.telefono is not None: lead.telefono = dto.telefono
