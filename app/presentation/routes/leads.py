@@ -101,6 +101,8 @@ async def list_leads(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
     fuente: Optional[str] = None,
+    producto_interes: Optional[str] = None,
+    search: Optional[str] = Query(None, description="Buscar en nombre o email"),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     sort_by: Optional[SortableFields] = Query("created_at", description="Campo para ordenar"),
@@ -113,7 +115,9 @@ async def list_leads(
             status_code=400,
             detail=f"Fuente inválida. Valores permitidos: {', '.join(FUENTES)}"
         )
-    result = await use_cases.list(page, limit, fuente, start_date, end_date, sort_by, sort_order)
+    result = await use_cases.list(
+        page, limit, fuente, producto_interes, search, start_date, end_date, sort_by, sort_order
+    )
     return {"success": True, "data": result}
 
 

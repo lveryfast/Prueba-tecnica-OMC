@@ -39,13 +39,17 @@ class LeadUseCases:
         page: int = 1,
         limit: int = 10,
         fuente: Optional[str] = None,
+        producto_interes: Optional[str] = None,
+        search: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         sort_by: Optional[SortableFields] = "created_at",
         sort_order: SortOrder = "desc"
     ) -> dict:
-        leads = await self.repo.get_all(page, limit, fuente, start_date, end_date, sort_by, sort_order)
-        total = await self.repo.count(fuente, start_date, end_date)
+        leads = await self.repo.get_all(
+            page, limit, fuente, produto_interes, search, start_date, end_date, sort_by, sort_order
+        )
+        total = await self.repo.count(fuente, producto_interes, search, start_date, end_date)
         pages = (total + limit - 1) // limit if limit > 0 else 0
         
         return {

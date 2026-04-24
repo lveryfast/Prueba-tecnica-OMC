@@ -28,6 +28,8 @@ class LeadRepositoryInterface(ABC):
         page: int = 1,
         limit: int = 10,
         fuente: Optional[str] = None,
+        producto_interes: Optional[str] = None,
+        search: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         sort_by: Optional[SortableFields] = "created_at",
@@ -51,6 +53,8 @@ class LeadRepositoryInterface(ABC):
     async def count(
         self,
         fuente: Optional[str] = None,
+        producto_interes: Optional[str] = None,
+        search: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None
     ) -> int:

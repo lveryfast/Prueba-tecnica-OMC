@@ -50,6 +50,8 @@ class LeadRepository(LeadRepositoryInterface):
         page: int = 1,
         limit: int = 10,
         fuente: Optional[str] = None,
+        producto_interes: Optional[str] = None,
+        search: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         sort_by: Optional[SortableFields] = "created_at",
@@ -59,6 +61,14 @@ class LeadRepository(LeadRepositoryInterface):
         
         if fuente:
             query = query.where(LeadModel.fuente == fuente)
+        if producto_interes:
+            query = query.where(LeadModel.producto_interes.ilike(f"%{producto_interes}%"))
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.where(
+                (LeadModel.nombre.ilike(search_pattern)) | 
+                (LeadModel.email.ilike(search_pattern))
+            )
         if start_date:
             query = query.where(LeadModel.created_at >= start_date)
         if end_date:
@@ -109,6 +119,8 @@ class LeadRepository(LeadRepositoryInterface):
     async def count(
         self,
         fuente: Optional[str] = None,
+        producto_interes: Optional[str] = None,
+        search: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None
     ) -> int:
@@ -116,12 +128,21 @@ class LeadRepository(LeadRepositoryInterface):
         
         if fuente:
             query = query.where(LeadModel.fuente == fuente)
+        if producto_interes:
+            query = query.where(LeadModel.producto_interes.ilike(f"%{producto_interes}%"))
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.where(
+                (LeadModel.nombre.ilike(search_pattern)) | 
+                (LeadModel.email.ilike(search_pattern))
+            )
         if start_date:
             query = query.where(LeadModel.created_at >= start_date)
         if end_date:
             query = query.where(LeadModel.created_at <= end_date)
         
         result = await self.session.scalar(query)
+        return result or 0
         return result or 0
 
     async def get_stats(self) -> dict:
