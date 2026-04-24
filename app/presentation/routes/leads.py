@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.params import Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from datetime import datetime
@@ -15,6 +16,9 @@ from app.application.use_cases.auth_use_cases import AuthUseCases
 from app.config import settings
 from app.presentation.middleware.rate_limit import limiter
 from app.presentation.middleware.auth import get_current_user
+
+SortableFields = Literal["created_at", "nombre", "email", "fuente", "presupuesto"]
+SortOrder = Literal["asc", "desc"]
 
 
 router = APIRouter()
@@ -99,6 +103,8 @@ async def list_leads(
     fuente: Optional[str] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    sort_by: Optional[SortableFields] = Query("created_at", description="Campo para ordenar"),
+    sort_order: SortOrder = Query("desc", description="Dirección del orden"),
     current_user: dict = Depends(get_current_user),
     use_cases: LeadUseCases = Depends(get_lead_use_cases)
 ):
@@ -107,7 +113,7 @@ async def list_leads(
             status_code=400,
             detail=f"Fuente inválida. Valores permitidos: {', '.join(FUENTES)}"
         )
-    result = await use_cases.list(page, limit, fuente, start_date, end_date)
+    result = await use_cases.list(page, limit, fuente, start_date, end_date, sort_by, sort_order)
     return {"success": True, "data": result}
 
 

@@ -1,12 +1,16 @@
-from typing import Optional, List
+from typing import Optional, List, Literal
 from uuid import UUID
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
+from sqlalchemy import asc, desc
 
 from app.domain.entities.lead import Lead
 from app.domain.interfaces.lead_repository import LeadRepositoryInterface
 from app.infrastructure.database.models import LeadModel
+
+SortableFields = Literal["created_at", "nombre", "email", "fuente", "presupuesto"]
+SortOrder = Literal["asc", "desc"]
 
 
 class LeadRepository(LeadRepositoryInterface):
@@ -47,7 +51,9 @@ class LeadRepository(LeadRepositoryInterface):
         limit: int = 10,
         fuente: Optional[str] = None,
         start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        end_date: Optional[datetime] = None,
+        sort_by: Optional[SortableFields] = "created_at",
+        sort_order: SortOrder = "desc"
     ) -> List[Lead]:
         query = select(LeadModel).where(LeadModel.is_deleted == False)
         
@@ -58,7 +64,17 @@ class LeadRepository(LeadRepositoryInterface):
         if end_date:
             query = query.where(LeadModel.created_at <= end_date)
         
-        query = query.order_by(LeadModel.created_at.desc())
+        # Map field names to model columns
+        field_map = {
+            "created_at": LeadModel.created_at,
+            "nombre": LeadModel.nombre,
+            "email": LeadModel.email,
+            "fuente": LeadModel.fuente,
+            "presupuesto": LeadModel.presupuesto
+        }
+        sort_column = field_map.get(sort_by, LeadModel.created_at)
+        order_func = desc if sort_order == "desc" else asc
+        query = query.order_by(order_func(sort_column))
         query = query.offset((page - 1) * limit).limit(limit)
         
         result = await self.session.execute(query)

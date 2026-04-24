@@ -1,8 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import Optional, List, Literal
 from uuid import UUID
 from datetime import datetime
 from app.domain.entities.lead import Lead
+
+SortableFields = Literal["created_at", "nombre", "email", "fuente", "presupuesto"]
+SortOrder = Literal["asc", "desc"]
 
 
 class LeadRepositoryInterface(ABC):
@@ -26,7 +29,9 @@ class LeadRepositoryInterface(ABC):
         limit: int = 10,
         fuente: Optional[str] = None,
         start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        end_date: Optional[datetime] = None,
+        sort_by: Optional[SortableFields] = "created_at",
+        sort_order: SortOrder = "desc"
     ) -> List[Lead]:
         pass
     

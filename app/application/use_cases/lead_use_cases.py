@@ -1,10 +1,14 @@
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
+from typing import Literal
 
 from app.domain.entities.lead import Lead
 from app.domain.interfaces.lead_repository import LeadRepositoryInterface
 from app.application.dtos.lead_dto import CreateLeadDto, UpdateLeadDto
+
+SortableFields = Literal["created_at", "nombre", "email", "fuente", "presupuesto"]
+SortOrder = Literal["asc", "desc"]
 
 
 class LeadUseCases:
@@ -36,9 +40,11 @@ class LeadUseCases:
         limit: int = 10,
         fuente: Optional[str] = None,
         start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        end_date: Optional[datetime] = None,
+        sort_by: Optional[SortableFields] = "created_at",
+        sort_order: SortOrder = "desc"
     ) -> dict:
-        leads = await self.repo.get_all(page, limit, fuente, start_date, end_date)
+        leads = await self.repo.get_all(page, limit, fuente, start_date, end_date, sort_by, sort_order)
         total = await self.repo.count(fuente, start_date, end_date)
         pages = (total + limit - 1) // limit if limit > 0 else 0
         
