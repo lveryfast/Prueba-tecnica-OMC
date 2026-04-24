@@ -5,6 +5,7 @@ from app.infrastructure.database.connection import get_db
 from app.infrastructure.repositories.lead_repository import LeadRepository
 from app.infrastructure.repositories.user_repository import UserRepository
 from app.infrastructure.services.auth_service import AuthService
+from app.infrastructure.services.ai_service import AIMockService
 from app.application.dtos.lead_dto import CreateLeadDto, UpdateLeadDto
 from app.application.dtos.auth_dto import LoginDto, LoginResponseDto
 from app.application.use_cases.lead_use_cases import LeadUseCases
@@ -14,6 +15,7 @@ from app.config import settings
 
 router = APIRouter()
 auth_service = AuthService()
+ai_service = AIMockService()
 
 
 @router.post("/leads", status_code=201)
@@ -86,3 +88,13 @@ async def login(dto: LoginDto, db: AsyncSession = Depends(get_db)):
         )
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
+
+
+@router.post("/leads/ai/summary")
+async def ai_summary(fuente: str = None, db: AsyncSession = Depends(get_db)):
+    repo = LeadRepository(db)
+    leads = await repo.get_all(page=1, limit=100)
+    if fuente:
+        leads = [l for l in leads if l.fuente == fuente]
+    summary = await ai_service.generate_summary(leads)
+    return {"success": True, "data": summary}
