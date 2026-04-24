@@ -49,12 +49,14 @@ app.include_router(leads_router, prefix="/api")
 async def health():
     try:
         async with engine.connect() as conn:
+            logger.info("Health check successful")
             return JSONResponse({
                 "status": "healthy",
                 "database": "connected",
                 "version": settings.APP_NAME
             })
     except Exception as e:
+        logger.error("Health check failed", extra={"error": str(e)})
         return JSONResponse(
             status_code=503,
             content={

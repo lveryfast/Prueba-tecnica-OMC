@@ -2,10 +2,13 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 import bcrypt
+from logging import getLogger
 
 from app.domain.entities.user import User
 from app.domain.interfaces.user_repository import UserRepositoryInterface
 from app.infrastructure.database.models import UserModel
+
+logger = getLogger(__name__)
 
 
 class UserRepository(UserRepositoryInterface):
@@ -25,8 +28,8 @@ class UserRepository(UserRepositoryInterface):
             try:
                 if bcrypt.checkpw(password.encode(), model.password_hash.encode()):
                     return self._to_entity(model)
-            except:
-                pass
+            except Exception as e:
+                logger.error("Password verification failed", extra={"email": email, "error": str(e)})
         return None
 
     def _to_entity(self, model: UserModel) -> User:

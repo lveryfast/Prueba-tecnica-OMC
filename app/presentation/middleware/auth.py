@@ -1,10 +1,11 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
+from logging import getLogger
 
 from app.config import settings
 
-
+logger = getLogger(__name__)
 security = HTTPBearer()
 
 
@@ -19,7 +20,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             algorithms=[settings.JWT_ALGORITHM]
         )
         return payload
-    except JWTError:
+    except JWTError as e:
+        logger.warning("JWT validation failed", extra={"error": str(e)})
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token de autenticación inválido o expirado",
