@@ -1,5 +1,5 @@
 from typing import List
-from datetime import datetime
+from datetime import datetime, timezone
 from app.domain.entities.lead import Lead
 
 
@@ -7,7 +7,7 @@ class AIMockService:
     async def generate_summary(self, leads: List[Lead]) -> dict:
         if not leads:
             return {
-                "fecha_analisis": datetime.utcnow().isoformat(),
+                "fecha_analisis": datetime.now(timezone.utc).isoformat(),
                 "total_leads": 0,
                 "analisis": "No hay leads para analizar",
                 "fuente_principal": None,
@@ -38,7 +38,7 @@ class AIMockService:
         producto_top = max(productos, key=productos.get) if productos else "N/A"
 
         return {
-            "fecha_analisis": datetime.utcnow().isoformat(),
+            "fecha_analisis": datetime.now(timezone.utc).isoformat(),
             "total_leads": len(leads),
             "analisis": f"Se analizaron {len(leads)} leads. La fuente principal es {principal} ({fuente_mas[principal]} leads). "
                         f"El interés principal es en {producto_top}. "

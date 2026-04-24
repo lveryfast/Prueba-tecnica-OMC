@@ -2,7 +2,7 @@ from typing import Optional, List
 from uuid import UUID
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.domain.entities.lead import Lead
 from app.domain.interfaces.lead_repository import LeadRepositoryInterface
@@ -123,7 +123,7 @@ class LeadRepository(LeadRepositoryInterface):
         )
         promedio = float(avg_result) if avg_result else 0
         
-        siete = datetime.utcnow() - timedelta(days=7)
+        siete = datetime.now(timezone.utc) - timedelta(days=7)
         ultimos = await self.session.scalar(
             select(func.count(LeadModel.id))
             .where(LeadModel.is_deleted == False)

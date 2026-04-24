@@ -4,7 +4,7 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import DataError
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone, timezone
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -17,7 +17,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
                 "detail": exc.errors()
             },
             "message": "Error de validación en los datos proporcionados",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     )
 
@@ -35,7 +35,7 @@ async def integrity_exception_handler(request: Request, exc: IntegrityError):
                     "detail": "El recurso ya existe"
                 },
                 "message": "Violación de restricción única. El email ya está registrado.",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         )
     
@@ -48,7 +48,7 @@ async def integrity_exception_handler(request: Request, exc: IntegrityError):
                 "detail": error_msg
             },
             "message": "Error de integridad en la base de datos",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     )
 
@@ -63,7 +63,7 @@ async def data_error_exception_handler(request: Request, exc: DataError):
                 "detail": str(exc.orig) if hasattr(exc, 'orig') else str(exc)
             },
             "message": "Formato de datos inválido",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     )
 
@@ -78,7 +78,7 @@ async def value_error_exception_handler(request: Request, exc: ValueError):
                 "detail": str(exc)
             },
             "message": str(exc),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     )
 
@@ -94,7 +94,7 @@ async def uuid_error_exception_handler(request: Request, exc: Exception):
                     "detail": "El ID proporcionado no es un UUID válido"
                 },
                 "message": "ID de recurso inválido",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         )
     raise exc
