@@ -1,0 +1,1 @@
+UPDATE users SET password_hash = '$2b$12$jCAXnHRF3v4NuAtW4R3wve//R5CHV4wdlhUfBweOoaf9wSVtQCQrW' WHERE email = 'admin@leads.com';

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -13,3 +14,4 @@ class Lead:
     producto_interes: Optional[str]
     presupuesto: Optional[float]
     is_deleted: bool = False
+    created_at: Optional[datetime] = None

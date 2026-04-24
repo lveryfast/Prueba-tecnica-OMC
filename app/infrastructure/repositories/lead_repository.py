@@ -1,6 +1,6 @@
 from typing import Optional, List
 from uuid import UUID
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 
@@ -67,32 +67,25 @@ class LeadRepository(LeadRepositoryInterface):
         return False
 
     async def get_stats(self) -> dict:
-        total = await self.session.scalar(
-            select(func.count(LeadModel.id)).where(LeadModel.is_deleted == False)
-        )
+        leads = await self.get_all(page=1, limit=1000)
         
-        fuente = await self.session.execute(
-            select(LeadModel.fuente, func.count(LeadModel.id))
-            .where(LeadModel.is_deleted == False)
-            .group_by(LeadModel.fuente)
-        )
-        por_fuente = {f[0]: f[1] for f in fuente.all()}
+        total = len(leads)
         
-        promedio = await self.session.scalar(
-            select(func.avg(LeadModel.presupuesto)).where(LeadModel.is_deleted == False)
-        )
+        por_fuente = {}
+        total_presupuesto = 0
+        for lead in leads:
+            por_fuente[lead.fuente] = por_fuente.get(lead.fuente, 0) + 1
+            if lead.presupuesto:
+                total_presupuesto += lead.presupuesto
         
-        siete = datetime.utcnow() - timedelta(days=7)
-        ultimos = await self.session.scalar(
-            select(func.count(LeadModel.id))
-            .where(and_(LeadModel.is_deleted == False, LeadModel.created_at >= siete))
-        )
+        promedio = total_presupuesto / len(leads) if leads else 0
+        ultimos_7 = len([l for l in leads if l.created_at and (datetime.utcnow() - l.created_at).days <= 7]) if leads else 0
         
         return {
-            "total": total or 0, 
-            "por_fuente": por_fuente, 
-            "promedio_presupuesto": float(promedio or 0), 
-            "ultimos_7_dias": ultimos or 0
+            "total": total,
+            "por_fuente": por_fuente,
+            "promedio_presupuesto": round(promedio, 2),
+            "ultimos_7_dias": ultimos_7
         }
 
     def _to_entity(self, model: LeadModel) -> Lead:
@@ -104,5 +97,6 @@ class LeadRepository(LeadRepositoryInterface):
             fuente=model.fuente,
             producto_interes=model.producto_interes,
             presupuesto=float(model.presupuesto) if model.presupuesto else None,
-            is_deleted=model.is_deleted
+            is_deleted=model.is_deleted,
+            created_at=model.created_at
         )

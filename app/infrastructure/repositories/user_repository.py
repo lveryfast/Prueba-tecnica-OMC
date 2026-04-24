@@ -1,7 +1,7 @@
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from passlib.hash import bcrypt
+import bcrypt
 
 from app.domain.entities.user import User
 from app.domain.interfaces.user_repository import UserRepositoryInterface
@@ -21,8 +21,12 @@ class UserRepository(UserRepositoryInterface):
 
     async def authenticate(self, email: str, password: str) -> Optional[User]:
         model = await self.get_by_email(email)
-        if model and bcrypt.verify(password, model.password_hash):
-            return self._to_entity(model)
+        if model:
+            try:
+                if bcrypt.checkpw(password.encode(), model.password_hash.encode()):
+                    return self._to_entity(model)
+            except:
+                pass
         return None
 
     def _to_entity(self, model: UserModel) -> User:
