@@ -8,7 +8,7 @@ from app.infrastructure.repositories.lead_repository import LeadRepository
 from app.infrastructure.repositories.user_repository import UserRepository
 from app.infrastructure.services.auth_service import AuthService
 from app.infrastructure.services.ai_service import AIMockService
-from app.application.dtos.lead_dto import CreateLeadDto, UpdateLeadDto
+from app.application.dtos.lead_dto import CreateLeadDto, UpdateLeadDto, FUENTES
 from app.application.dtos.auth_dto import LoginDto, LoginResponseDto
 from app.application.use_cases.lead_use_cases import LeadUseCases
 from app.application.use_cases.auth_use_cases import AuthUseCases
@@ -102,6 +102,11 @@ async def list_leads(
     current_user: dict = Depends(get_current_user),
     use_cases: LeadUseCases = Depends(get_lead_use_cases)
 ):
+    if fuente is not None and fuente.lower() not in FUENTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Fuente inválida. Valores permitidos: {', '.join(FUENTES)}"
+        )
     result = await use_cases.list(page, limit, fuente, start_date, end_date)
     return {"success": True, "data": result}
 
@@ -121,6 +126,11 @@ async def ai_summary(
     repo: LeadRepository = Depends(get_lead_repository),
     ai_service: AIMockService = Depends(get_ai_service)
 ):
+    if fuente is not None and fuente.lower() not in FUENTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Fuente inválida. Valores permitidos: {', '.join(FUENTES)}"
+        )
     leads = await repo.get_all(page=1, limit=100, fuente=fuente)
     summary = await ai_service.generate_summary(leads)
     return {"success": True, "data": summary}
