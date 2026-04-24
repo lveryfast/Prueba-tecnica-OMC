@@ -3,6 +3,8 @@ from fastapi.params import Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from datetime import datetime
+from uuid import UUID
+from uuid.error import UUIDValidationError
 
 from app.infrastructure.database.connection import get_db
 from app.infrastructure.repositories.lead_repository import LeadRepository
@@ -152,6 +154,10 @@ async def get_lead(
     current_user: dict = Depends(get_current_user),
     use_cases: LeadUseCases = Depends(get_lead_use_cases)
 ):
+    try:
+        UUID(lead_id)
+    except UUIDValidationError:
+        raise HTTPException(status_code=400, detail="ID de lead inválido")
     lead = await use_cases.get(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead no encontrado")
@@ -166,6 +172,11 @@ async def update_lead(
     use_cases: LeadUseCases = Depends(get_lead_use_cases)
 ):
     try:
+        UUID(lead_id)
+    except UUIDValidationError:
+        raise HTTPException(status_code=400, detail="ID de lead inválido")
+):
+    try:
         lead = await use_cases.update(lead_id, dto)
         return {"success": True, "data": lead}
     except ValueError as e:
@@ -178,6 +189,10 @@ async def delete_lead(
     current_user: dict = Depends(get_current_user),
     use_cases: LeadUseCases = Depends(get_lead_use_cases)
 ):
+    try:
+        UUID(lead_id)
+    except UUIDValidationError:
+        raise HTTPException(status_code=400, detail="ID de lead inválido")
     result = await use_cases.delete(lead_id)
     if not result:
         raise HTTPException(status_code=404, detail="Lead no encontrado")
