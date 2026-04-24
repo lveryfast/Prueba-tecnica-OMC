@@ -1,9 +1,10 @@
 from typing import List
 from datetime import datetime, timezone
 from app.domain.entities.lead import Lead
+from app.domain.interfaces.ai_service import AIServiceInterface
 
 
-class AIMockService:
+class AIMockService(AIServiceInterface):
     async def generate_summary(self, leads: List[Lead]) -> dict:
         if not leads:
             return {
