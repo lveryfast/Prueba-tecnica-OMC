@@ -100,7 +100,8 @@ async def test_list_leads_with_pagination(mock_repo, sample_lead):
     assert "page" in result
     assert "pages" in result
     assert result["total"] == 1
-    mock_repo.get_all.assert_called_once_with(1, 10, None, None, None)
+    # New signature: page, limit, fuente, producto_interes, search, start_date, end_date, sort_by, sort_order
+    mock_repo.get_all.assert_called_once_with(1, 10, None, None, None, None, None, "created_at", "desc")
 
 
 @pytest.mark.asyncio
@@ -112,7 +113,7 @@ async def test_list_leads_with_filters(mock_repo, sample_lead):
     result = await use_cases.list(page=1, limit=10, fuente="instagram")
     
     assert result["total"] == 1
-    mock_repo.get_all.assert_called_once_with(1, 10, "instagram", None, None)
+    mock_repo.get_all.assert_called_once_with(1, 10, "instagram", None, None, None, None, "created_at", "desc")
 
 
 @pytest.mark.asyncio
