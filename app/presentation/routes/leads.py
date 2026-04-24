@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from datetime import datetime
@@ -13,6 +13,7 @@ from app.application.dtos.auth_dto import LoginDto, LoginResponseDto
 from app.application.use_cases.lead_use_cases import LeadUseCases
 from app.application.use_cases.auth_use_cases import AuthUseCases
 from app.config import settings
+from app.presentation.middleware.rate_limit import limiter
 
 
 router = APIRouter()
@@ -104,7 +105,8 @@ async def delete_lead(lead_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/auth/login")
-async def login(dto: LoginDto, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login(request: Request, dto: LoginDto, db: AsyncSession = Depends(get_db)):
     user_repo = UserRepository(db)
     use_cases = AuthUseCases(user_repo)
     try:

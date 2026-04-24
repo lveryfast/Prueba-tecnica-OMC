@@ -6,6 +6,8 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.infrastructure.database.connection import engine, Base
 from app.presentation.routes.leads import router as leads_router
+from app.presentation.handlers.exceptions import register_exception_handlers
+from app.presentation.middleware.rate_limit import register_rate_limiter
 
 
 @asynccontextmanager
@@ -18,6 +20,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Lead Management API",
     version="1.0.0",
+    description="API REST para gestión de leads con análisis de IA",
     lifespan=lifespan
 )
 
@@ -29,14 +32,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+register_exception_handlers(app)
+register_rate_limiter(app)
+
 app.include_router(leads_router, prefix="/api")
 
 
 @app.get("/health")
 async def health():
-    return JSONResponse({"status": "healthy"})
+    try:
+        async with engine.connect() as conn:
+            return JSONResponse({
+                "status": "healthy",
+                "database": "connected",
+                "version": settings.APP_NAME
+            })
+    except Exception as e:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "database": "disconnected",
+                "error": str(e)
+            }
+        )
 
 
 @app.get("/")
 async def root():
-    return {"message": "Lead Management API", "version": "1.0.0"}
+    return {
+        "message": "Lead Management API",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }
